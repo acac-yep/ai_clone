@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI个人克隆助手</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+        }
+        #chat-history {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 16px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #dcf8c6;
+            margin-left: auto;
+        }
+        .ai-message {
+            background-color: #e5e5ea;
+        }
+        .message-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        #input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #send-button:hover {
+            background-color: #45a049;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI个人克隆助手</h1>
+    <div id="chat-container">
+        <div id="chat-history"></div>
+        <div id="input-container">
+            <input type="text" id="message-input" placeholder="请输入您的消息...">
+            <button id="send-button">发送</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatHistory = document.getElementById('chat-history');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+
+            // 加载历史对话
+            loadHistory();
+
+            // 发送消息事件
+            sendButton.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            function loadHistory() {
+                fetch('/api/history')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(conv => {
+                            addMessage('user', conv.user_input, new Date(conv.timestamp).toLocaleString());
+                            addMessage('ai', conv.ai_response, new Date(conv.timestamp).toLocaleString());
+                        });
+                    })
+                    .catch(error => console.error('加载历史对话失败:', error));
+            }
+
+            function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                // 添加用户消息到界面
+                addMessage('user', message, new Date().toLocaleString());
+                messageInput.value = '';
+
+                // 发送消息到服务器
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            addMessage('ai', '错误: ' + data.error, new Date().toLocaleString());
+                        } else {
+                            addMessage('ai', data.response, new Date().toLocaleString());
+                        }
+                    })
+                    .catch(error => {
+                        console.error('发送消息失败:', error);
+                        addMessage('ai', '发送消息失败，请重试', new Date().toLocaleString());
+                    });
+            }
+
+            function addMessage(sender, content, timestamp) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(sender === 'user' ? 'user-message' : 'ai-message');
+
+                const headerDiv = document.createElement('div');
+                headerDiv.classList.add('message-header');
+                headerDiv.textContent = sender === 'user' ? '您' : 'AI助手' + ' (' + timestamp + ')';
+
+                const contentDiv = document.createElement('div');
+                contentDiv.textContent = content;
+
+                messageDiv.appendChild(headerDiv);
+                messageDiv.appendChild(contentDiv);
+                chatHistory.appendChild(messageDiv);
+
+                // 滚动到底部
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>
