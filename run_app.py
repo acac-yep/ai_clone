@@ -1,6 +1,10 @@
 import subprocess
 import sys
 import os
+from dotenv import load_dotenv
+
+# 加载.env文件中的环境变量
+load_dotenv()
 
 def run_command(command, description):
     """执行命令并显示描述"""
@@ -41,7 +45,11 @@ if __name__ == '__main__':
     print("检查DeepSeek API密钥...")
     if not os.environ.get('DEEPSEEK_API_KEY'):
         print("警告：未设置DEEPSEEK_API_KEY环境变量。")
-        print("请在系统环境变量中设置DEEPSEEK_API_KEY，或直接在app/utils/ai_processor.py中修改api_key参数。")
+        if os.path.exists('.env'):
+            print("请在项目根目录的.env文件中设置DEEPSEEK_API_KEY。")
+            print("示例: DEEPSEEK_API_KEY=your_deepseek_api_key_here")
+        else:
+            print("请在系统环境变量中设置DEEPSEEK_API_KEY，或创建.env文件并添加密钥。")
         input("按Enter键继续...")
 
     # 初始化数据库

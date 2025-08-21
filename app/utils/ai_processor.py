@@ -1,14 +1,20 @@
 import re
-from openai import OpenAI
 import os
+import requests
 
-# 初始化DeepSeek客户端
-# 注意：API密钥会从环境变量DEEPSEEK_API_KEY自动获取
-# 如果需要指定密钥，可以使用：client = OpenAI(api_key='your-api-key', ...)
-client = OpenAI(
-    api_key=os.environ.get('DEEPSEEK_API_KEY', 'your-default-api-key'),
-    base_url="https://api.deepseek.com"
-)
+# 初始化DeepSeek客户端配置
+# 使用requests库直接调用DeepSeek API
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
+DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+
+# 配置请求头
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {DEEPSEEK_API_KEY}'
+} if DEEPSEEK_API_KEY else {}
+
+# 移除可能存在的proxies配置
+# 如果需要使用代理，请在requests请求中单独配置
 
 def process_ai_request(user_input, history):
     """
@@ -53,18 +59,37 @@ def build_prompt(user_input, history):
 def call_ai_model(prompt):
     """调用DeepSeek AI模型生成回复"""
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
+        if not DEEPSEEK_API_KEY:
+            raise ValueError("DeepSeek API key is not set")
+
+        # 构建请求体
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
                 {"role": "system", "content": "你是一个个性化AI助手，需要根据用户的对话风格和历史交流来生成回复。"},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7
+            "temperature": 0.7
+        }
+
+        # 发送请求
+        response = requests.post(
+            DEEPSEEK_API_URL,
+            headers=headers,
+            json=payload
         )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
+
+        # 检查响应状态
+        response.raise_for_status()
+
+        # 提取回复内容
+        return response.json()['choices'][0]['message']['content'].strip()
+    except requests.exceptions.RequestException as e:
         print(f"Error calling DeepSeek API: {e}")
         return "抱歉，当前AI服务不可用。请稍后再试。"
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return "抱歉，处理请求时发生错误。请稍后再试。"
 
 
 def extract_keywords(text):
